@@ -6,7 +6,7 @@ BackL = 0Dh
 NewL = 0Ah
 
 .data
-welcome db 'Write text: ', '$' ; test
+welcome db 'Write text: ', '$'
 echoMSG db  NewL, BackL, 'Entered: ', '$', NewL, BackL
 inputBuf db 255
          db ?
