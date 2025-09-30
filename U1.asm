@@ -15,9 +15,6 @@ PROGRAM:
     mov ax, @data
     mov ds, ax
 
-    mov ax, 12
-    call PrintNum
-
     mov ah, 09h
     mov dx, offset welcome
     int 21h
@@ -46,13 +43,13 @@ PROGRAM:
         jae EXIT
             ; xor bx, bx
             mov si, cx
-            mov bl, [buffer + 2 + si] ; Current num
+            mov bl, [buffer + 2 + si] ; Current char
 
             cmp bl, 32 ; space
             jne _else
                 cmp ax, 0
                 je _endif
-                    call PrintNum
+                    call PrintNum ; print ax number
                     xor ax, ax
                     jmp _endif
             _else:
@@ -78,7 +75,7 @@ PrintNum PROC
     xor dx, dx
     xor bx, bx
 
-    mov bl, 10
+    mov bx, 10
 
     WHILE1:
     cmp ax, 0
