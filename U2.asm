@@ -14,8 +14,9 @@ output dw ?
 help_message db 'Usage: program_name input_file1 input_file2 output_file',13,10,'$'
 
 newline db 13,10,'$'
-buffer1 db 255 dup(?)
-buffer2 db 255 dup(?)
+buffer1 db 256 dup('$')
+buffer2 db 256 dup("$")
+buffer3 db 256 dup('$')
 
 ; ERRORS messages
 unknown_err db ' -> ERROR: unknown error!',13,10,'$'
@@ -28,77 +29,158 @@ already_exist_err db ' -> ERROR: file already exist!',13,10,'$'
 
 .code
 program:
-    mov ax, @data
-    mov ds, ax
 
-    call CL_PARAMS_READ
-    cmp al, 1
-    je PRINT_HELP
+mov ax, @data
+mov ds, ax
 
-    ; Open input 1
-    mov ah, 3dh 
-    mov al, 00h
-    mov dx, offset input_filename1
-    int 21h
-         jc OPEN_ERROR
-    mov [input1], ax             ; Save file descriptor
+call CL_PARAMS_READ
+cmp al, 1
+jne OPEN_FILES
 
-    ; Open input 2
-    mov ah, 3dh 
-    mov al, 00h
-    mov dx, offset input_filename2
-    int 21h
-        jc OPEN_ERROR
-    mov [input2], ax             ; Save file descriptor
+mov ah, 09h
+mov dx, offset help_message
+int 21h
+mov al, 01
+jmp EXIT
 
-    ; Create and open output
-    mov ah, 5Bh
-    mov cx, 00h
-    mov dx, offset output_filename
-    int 21h
-        jc OPEN_ERROR
-    mov [output], ax
+OPEN_FILES:
+; Open input 1
+mov ah, 3dh 
+mov al, 00h
+mov dx, offset input_filename1
+int 21h
+jnc NEXT1
+call OPEN_ERROR
+
+NEXT1:
+; Save file descriptor
+mov [input1], ax
+
+; Open input 2
+mov ah, 3dh 
+mov al, 00h
+mov dx, offset input_filename2
+int 21h
+jnc NEXT2
+call OPEN_ERROR
+
+NEXT2:
+mov [input2], ax
+
+; Create and open output
+mov ah, 5Bh
+mov cx, 00h
+mov dx, offset output_filename
+int 21h
+jnc NEXT3
+call OPEN_ERROR
+
+NEXT3:
+mov [output], ax
+
 
 ; ------------------------------------ 
 
-    mov dx, offset buffer1
-    mov bx, [offset input1]
-    mov ah, 3fh
+LOOP_OUT:
+    mov ah, 03Fh
+    mov bx, [input1]
     mov cx, 255
+    mov dx, offset buffer1
     int 21h
-        mov dx, offset input_filename1
-        jc OPEN_ERROR
-    
 
+    jnc NEXT5
+    mov dx, offset input_filename1
+    call OPEN_ERROR
+    NEXT5:
+    cmp ax, 0
+    je EXIT
+    mov bx, ax
 
+    mov ah, 03Fh
+    mov bx, [input2]
+    mov cx, 255
+    mov dx, offset buffer2
+    int 21h
 
+    jnc NEXT7
+    mov dx, offset input_filename2
+    call OPEN_ERROR
+    NEXT7:
+    cmp ax, 0
+    je EXIT
+    mov cx, ax
+
+    ; cmp bx, ax
+    ; jle SKIP
+    ; mov bx, ax
+    ; SKIP:
+    ; ; bx min.
+
+    mov si, offset buffer1
+    mov di, offset buffer2
+    xor cx, cx
+    LOOP_IN: 
+        mov al, [si]
+        mov ah, [di]
+
+        cmp al, '0'
+        je OK
+        cmp al, '1'
+        je OK
+        jmp IN_END
+
+        cmp ah, '0'
+        je OK
+        cmp ah, '1'
+        je OK
+        jmp IN_END
+
+        OK:
+        and al, ah
+        mov [si], al
+        inc si
+        inc di
+        inc cx
+        jmp LOOP_IN
+    IN_END:
+
+    mov ah, 40h
+    mov bx, [output]
+    ; mov cx, 255
+    mov dx, offset buffer1
+    int 21h
+
+    jnc NEXT8
+    mov dx, offset output_filename
+    call OPEN_ERROR
+    NEXT8:
+
+jmp LOOP_OUT ; Loop
+
+; ------------------------------------
 
 
 EXIT:
     ; Close files if opened
     mov ah, 3Eh
     mov bx, input1
+    int 21h
     mov AH, 3Eh
     mov bx, input2
+    int 21h
     mov AH, 3Eh
     mov bx, output
+    int 21h
 
     mov ah, 4Ch
     int 21h
-
-PRINT_HELP:
-    mov ah, 09h
-    mov dx, offset help_message
-    int 21h
-    mov al, 01
-    jmp EXIT
 
 ; --------------------------------------------------------------------
 ; Identify open file error and print it. 
 ; Input -> dx - current file, ax - error
 ; Return -> exit.
 ; --------------------------------------------------------------------
-OPEN_ERROR:
+OPEN_ERROR PROC
         mov bx, ax      ; save error code
         mov ah, 09h 
         int 21h
@@ -150,6 +232,7 @@ OPEN_ERROR:
     ERR_PRINT:
         int 21h     ; Print error
         jmp EXIT    ; Exit program
+OPEN_ERROR ENDP
 
 ; --------------------------------------------------------------------
 ; Read 3 filenames from command line
