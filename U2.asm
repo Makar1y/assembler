@@ -3,7 +3,7 @@
 
 .data
 input_filename1 db 20 dup(?), '$'
-input1 dw ?
+input1 dw ? ; Descriptor
 
 input_filename2 db 20 dup(?), '$'
 input2 dw ?
@@ -13,10 +13,8 @@ output dw ?
 
 help_message db 'Usage: program_name input_file1 input_file2 output_file',13,10,'$'
 
-newline db 13,10,'$'
 buffer1 db 256 dup('$')
 buffer2 db 256 dup("$")
-buffer3 db 256 dup('$')
 
 ; ERRORS messages
 unknown_err db ' -> ERROR: unknown error!',13,10,'$'
@@ -67,9 +65,9 @@ call OPEN_ERROR
 NEXT2:
 mov [input2], ax
 
-; Create and open output
+; Create and open output file
 mov ah, 5Bh
-mov cx, 00h
+mov cx, 00h  ; File attributes (hidden, system, etc) 
 mov dx, offset output_filename
 int 21h
 jnc NEXT3
@@ -82,25 +80,33 @@ mov [output], ax
 ; ------------------------------------ 
 
 LOOP_OUT:
-    mov ah, 03Fh
+    mov ah, 3Fh
     mov bx, [input1]
     mov cx, 255
     mov dx, offset buffer1
     int 21h
+    ; add end of read data
+    mov si, offset buffer1
+    add si, ax
+    mov byte ptr [si], '$'
 
     jnc NEXT5
     mov dx, offset input_filename1
     call OPEN_ERROR
     NEXT5:
+    ; If read 0 bytes
     cmp ax, 0
     je EXIT
-    mov bx, ax
 
-    mov ah, 03Fh
+    mov ah, 3Fh
     mov bx, [input2]
     mov cx, 255
     mov dx, offset buffer2
     int 21h
+    ; add end of read data
+    mov si, offset buffer1
+    add si, ax
+    mov byte ptr [si], '$'
 
     jnc NEXT7
     mov dx, offset input_filename2
@@ -108,13 +114,6 @@ LOOP_OUT:
     NEXT7:
     cmp ax, 0
     je EXIT
-    mov cx, ax
-
-    ; cmp bx, ax
-    ; jle SKIP
-    ; mov bx, ax
-    ; SKIP:
-    ; ; bx min.
 
     mov si, offset buffer1
     mov di, offset buffer2
@@ -123,9 +122,9 @@ LOOP_OUT:
         mov al, [si]
         mov ah, [di]
 
-        cmp al, '0'
+        cmp al, '0' ; 48 -> 0011 0000
         je OK
-        cmp al, '1'
+        cmp al, '1' ; 49 -> 0011 0001
         je OK
         jmp IN_END
 
@@ -146,7 +145,7 @@ LOOP_OUT:
 
     mov ah, 40h
     mov bx, [output]
-    ; mov cx, 255
+    ; cx - how bytes to write
     mov dx, offset buffer1
     int 21h
 
@@ -161,6 +160,9 @@ jmp LOOP_OUT ; Loop
 
 
 EXIT:
+    ; save error code
+    push ax
+
     ; Close files if opened
     mov ah, 3Eh
     mov bx, input1
@@ -172,6 +174,7 @@ EXIT:
     mov bx, output
     int 21h
 
+    pop ax
     mov ah, 4Ch
     int 21h
 
@@ -240,7 +243,7 @@ OPEN_ERROR ENDP
 ; --------------------------------------------------------------------
 CL_PARAMS_READ PROC
     mov si, 80h           ; CL length
-    mov cl, es:[si]
+    mov cl, ds:[si]
     cmp cl, 0
     je ERR_RET            ; no params
 
