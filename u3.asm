@@ -18,8 +18,9 @@ welcome_message db ' ----------------------------------------------------------'
 
 overflow_msg db 'Overflow! $'
 
-ax_m dw ?
-bx_m dw ?
+; ax_m dw ?
+; bx_m dw ?
+; fs_m dw ?
 buffer db 4 dup('0'), '$'
 
 
@@ -87,34 +88,34 @@ int 21h
 ; \
 ;   -----------------------------
 INT_4 proc far
+push bp
+mov bp, sp
+push ax
+
     lea dx, overflow_msg
     mov ah, 09h
     int 21h
 
-    mov word ptr ax_m, ax
-    mov word ptr bx_m, bx
-
-    pop bx
-    pop ax
-    push ax
-    push bx
-    sub bx, 1
-
+    mov ax, [bp + 4]
     call PrintNum
+
     push dx
     mov ah, 02h
     mov dl, ':'
     int 21h
     pop dx
-    mov ax, bx
+
+    mov ax, [bp + 2]
     call PrintNum
 
+pop ax
+pop bp
 iret
 INT_4 endp
 
 ;   -----------------------------
 ; /
-; |     Print num in ax.
+; |     Print hex num in ax.
 ; \
 ;   -----------------------------
 PrintNum PROC
@@ -124,38 +125,31 @@ push cx
 push dx
 push di
 
-    mov bx, 16          ; divisor = 16 for hex
-    xor cx, cx          ; digit count = 0
+    mov cx, 4           ; Always loop 4 times for 4 hex digits
+    mov bx, 16          ; Divisor = 16 (for hex)
+    lea di, buffer + 3  ; Start at the rightmost character slot (before '$')
 
 convert_loop:
     xor dx, dx
-    div bx              ; AX / 16 → AX = quotient, DX = remainder
-    push dx             ; save remainder
-    inc cx              ; count digit
-    cmp ax, 0
-    jne convert_loop
+    div bx              ; AX / 16 -> AX = quotient, DX = remainder (current digit)
 
-    lea di, buffer
-    add di, 4
-    sub di, cx
-print_loop:
-    pop dx
     cmp dl, 9
     jbe digit_is_number
-    add dl, 55          ; 10–15 → 'A'–'F' (10+55=65='A')
-    jmp print_digit
+    add dl, 55          ; 10–15 -> 'A'–'F' (10+55=65='A')
+    jmp store_digit
 digit_is_number:
-    add dl, 48          ; 0–9 → '0'–'9'
-print_digit:
-    mov [di], dl
-    inc di
-    loop print_loop
+    add dl, 48          ; 0–9 -> '0'–'9'
+store_digit:
+    mov [di], dl        ; Store digit in buffer (right to left)
+    dec di              ; Move to the next slot (left)
+    loop convert_loop
 
-    ; print
+    ; print the 4-digit result
     mov ah, 09h
     lea dx, buffer
     int 21h
-    call CLEAR_BUFF
+
+    ; No need to call CLEAR_BUFF since the entire 4-byte string was overwritten
 
 pop di
 pop dx
@@ -164,21 +158,6 @@ pop bx
 pop ax
 ret
 PrintNum ENDP
-
-;description
-CLEAR_BUFF PROC
-    lea di, buffer
-
-Clear_loop:
-    cmp ds:[di], '$'
-    je Return
-    mov byte ptr [di], '0'
-    inc di
-    jmp Clear_loop
-
-    Return:
-ret
-CLEAR_BUFF ENDP
 
 ; ---------------------------------------------------------------- END ---------------------------------------------------------------------------
 end program
