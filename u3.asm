@@ -20,7 +20,7 @@ overflow_msg db 'Overflow! $'
 
 ax_m dw ?
 bx_m dw ?
-buffer dw 4 dup(0)
+buffer db 4 dup('0'), '$'
 
 
 
@@ -109,10 +109,6 @@ INT_4 proc far
     mov ax, bx
     call PrintNum
 
-    ; call PRINT_ADDRES
-    ; call PRINT_REGS
-    ; call PRINT_SF
-
 iret
 INT_4 endp
 
@@ -130,8 +126,6 @@ push di
 
     mov bx, 16          ; divisor = 16 for hex
     xor cx, cx          ; digit count = 0
-    lea di, buffer
-    add di, 3
 
 convert_loop:
     xor dx, dx
@@ -141,6 +135,9 @@ convert_loop:
     cmp ax, 0
     jne convert_loop
 
+    lea di, buffer
+    add di, 4
+    sub di, cx
 print_loop:
     pop dx
     cmp dl, 9
@@ -150,16 +147,15 @@ print_loop:
 digit_is_number:
     add dl, 48          ; 0–9 → '0'–'9'
 print_digit:
-    mov byte ptr [di], dl
-    dec di
+    mov [di], dl
+    inc di
     loop print_loop
-
 
     ; print
     mov ah, 09h
-    mov dx, buffer
-    
+    lea dx, buffer
     int 21h
+    call CLEAR_BUFF
 
 pop di
 pop dx
@@ -169,7 +165,20 @@ pop ax
 ret
 PrintNum ENDP
 
+;description
+CLEAR_BUFF PROC
+    lea di, buffer
 
+Clear_loop:
+    cmp ds:[di], '$'
+    je Return
+    mov byte ptr [di], '0'
+    inc di
+    jmp Clear_loop
+
+    Return:
+ret
+CLEAR_BUFF ENDP
 
 ; ---------------------------------------------------------------- END ---------------------------------------------------------------------------
 end program
