@@ -13,7 +13,7 @@ welcome_message db ' ----------------------------------------------------------'
                 db '|               Author - Makariy Sinyavskiy                |', CRET, CF
                 db '|                                                          |', CRET, CF
                 db '|       Program processing overflow procedure (INT 4)      |', CRET, CF
-                db '|                                                          |',, CRET, CF
+                db '|                                                          |', CRET, CF
                 db ' ----------------------------------------------------------', CRET, CF, CF,'$'
 
 overflow_msg db ' ! Overflow !   $'
