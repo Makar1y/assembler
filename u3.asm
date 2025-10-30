@@ -161,7 +161,7 @@ push dx
     sub ax, 1
     mov bx, ax
     xor ax, ax
-    mov ax, cs:[bx]
+    mov al, cs:[bx]
     call PrintNum
 
     mov ah, 02h
