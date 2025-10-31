@@ -63,6 +63,7 @@ int 21h
 
 mov word ptr old_INT, bx
 mov word ptr old_INT + 2, es
+
 push ds
 
 mov ah, 25h
@@ -83,6 +84,9 @@ pop ds
 mov ax, 5FFFh
 add ax, 5fffh
 into
+
+; mov ah, 04h
+; int 21h
 
 mov al, 0ffh
 mov bl, 1fh
@@ -149,19 +153,41 @@ push dx
     mov dl, ':'
     int 21h
 
+    mov bx, [bp + 18]
+    sub bx, 2
+    xor ax, ax
+    mov ax, cs:[bx]
+    mov cl, 8
+    shr ax, cl
+    xor cx, cx
+    cmp al, 0CEh
+    jne yes
+    mov cx, 1
+    jmp ex
+yes:
+    mov cx, 2
+ex:
+
     mov ax, [bp + 18]
-    sub ax, 1
+    sub ax, cx
     call PrintNum
 
     mov ah, 02h
     mov dl, ' '
     int 21h
 
-    mov ax, [bp + 18]
-    sub ax, 1
-    mov bx, ax
+    mov bx, [bp + 18]
+    sub bx, cx
     xor ax, ax
+    cmp cx, 2
+    je full
     mov al, cs:[bx]
+    jmp print
+full:
+    mov ah, cs:[bx]
+    inc bx
+    mov al, cs:[bx]
+print:
     call PrintNum
 
     mov ah, 02h
@@ -444,7 +470,7 @@ PrintSF PROC
     mov dl, ' '
     int 21h
 
-    lea dx, sf_pf
+    lea dx, sf_cf
     mov ah, 09h
     int 21h
     mov dx, bx
